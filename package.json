@@ -53,10 +53,10 @@
   "devDependencies": {},
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/namanjain24-sudo/easycron.git"
   },
-  "homepage": "",
+  "homepage": "https://github.com/namanjain24-sudo/easycron#readme",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/namanjain24-sudo/easycron/issues"
   }
 }
