@@ -1,14 +1,28 @@
-# ⏳ easycron
+<h1 align="center">⏳ easycron</h1>
 
-Schedule jobs in plain English — and run them reliably even on sleeping servers.
+<p align="center">
+  Schedule jobs in plain English — and run them reliably even on sleeping servers.
+</p>
 
-Stop writing cron syntax. Stop losing jobs when your server sleeps.
+<p align="center">
+  <b>Stop writing cron syntax. Stop losing jobs when your server sleeps.</b>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/npm/v/easycron-cli" />
+  <img src="https://img.shields.io/npm/dm/easycron-cli" />
+  <img src="https://img.shields.io/badge/license-MIT-green" />
+</p>
+
+---
 
 ## 🚀 Install
 
 ```bash
 npm i -g easycron-cli
 ```
+
+---
 
 ## ⚡ Quick Example
 
@@ -20,6 +34,8 @@ easycron external https://your-app.onrender.com/api/task "every 10 minutes"
 👉 Runs every 10 minutes
 👉 Works even if your server is asleep
 
+---
+
 ## 🤯 Why this exists
 
 Free-tier platforms (Render, Railway, Fly.io):
@@ -29,8 +45,12 @@ Free-tier platforms (Render, Railway, Fly.io):
 
 **easycron fixes this using external triggers (GitHub Actions, UptimeRobot)**
 
+---
+
 ## 🧠 How it works
 `easycron` → generates trigger → GitHub runs it → server wakes → task runs
+
+---
 
 ## 🔥 Features
 - Plain English scheduling (`every 10 minutes`)
@@ -40,9 +60,13 @@ Free-tier platforms (Render, Railway, Fly.io):
 - Keep-awake mode
 - Plugin system
 
-## 🎥 Demo
+---
 
-![demo](./demo.gif)
+<h2 align="center">🎥 Demo</h2>
+
+<p align="center">
+  <img src="./demo.gif" width="700"/>
+</p>
 
 ---
 
