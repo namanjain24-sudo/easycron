@@ -41,8 +41,8 @@ Free-tier platforms (Render, Railway, Fly.io):
 - Plugin system
 
 ## 🎥 Demo
-*(🎬 Terminal recording GIF goes here — record using a tool like Terminalizer or VHS and place `demo.gif` in the repo.)*
-![easycron cli demo](demo.gif)
+
+![demo](./demo.gif)
 
 ---
 
