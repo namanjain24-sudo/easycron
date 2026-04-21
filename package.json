@@ -1,0 +1,44 @@
+{
+  "name": "easycron",
+  "version": "1.0.0",
+  "description": "Human-friendly cron scheduling + external triggers for free-tier servers. Never write cron syntax again.",
+  "main": "src/index.js",
+  "bin": {
+    "easycron": "./bin/easycron.js"
+  },
+  "scripts": {
+    "start": "node bin/easycron.js",
+    "test": "node --test tests/",
+    "test:parser": "node --test tests/parser.test.js",
+    "test:store": "node --test tests/store.test.js",
+    "test:trigger": "node --test tests/trigger.test.js",
+    "lint": "echo \"No linter configured yet\""
+  },
+  "keywords": [
+    "cron",
+    "scheduler",
+    "free-tier",
+    "render",
+    "railway",
+    "github-actions",
+    "natural-language",
+    "cli",
+    "devtools"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "node-cron": "^3.0.3",
+    "chalk": "^4.1.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}
