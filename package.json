@@ -6,39 +6,57 @@
   "bin": {
     "easycron": "./bin/easycron.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node bin/easycron.js",
     "test": "node --test tests/",
     "test:parser": "node --test tests/parser.test.js",
     "test:store": "node --test tests/store.test.js",
     "test:trigger": "node --test tests/trigger.test.js",
-    "lint": "echo \"No linter configured yet\""
+    "test:scaffold": "node --test tests/scaffold.test.js",
+    "test:plugins": "node --test tests/plugins.test.js",
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "cron",
     "scheduler",
+    "cron-job",
     "free-tier",
     "render",
     "railway",
+    "fly-io",
     "github-actions",
+    "uptimerobot",
+    "webhook",
+    "trigger",
     "natural-language",
     "cli",
-    "devtools"
+    "devtools",
+    "keep-awake"
   ],
-  "author": "",
+  "author": "naman",
   "license": "MIT",
   "engines": {
     "node": ">=16.0.0"
   },
   "dependencies": {
+    "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "node-cron": "^3.0.3",
-    "chalk": "^4.1.2",
     "uuid": "^9.0.1"
   },
   "devDependencies": {},
   "repository": {
     "type": "git",
+    "url": ""
+  },
+  "homepage": "",
+  "bugs": {
     "url": ""
   }
 }
