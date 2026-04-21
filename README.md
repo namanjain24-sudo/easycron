@@ -1,4 +1,4 @@
-<h1 align="center">⏳ easycron</h1>
+<h1 align="center">⏳ easycron CLI</h1>
 
 <p align="center">
   Schedule jobs in plain English — and run them reliably even on sleeping servers.
@@ -43,12 +43,12 @@ Free-tier platforms (Render, Railway, Fly.io):
 - Kill background cron jobs
 - Break scheduled tasks
 
-**easycron fixes this using external triggers (GitHub Actions, UptimeRobot)**
+**easycron CLI fixes this using external triggers (GitHub Actions, UptimeRobot)**
 
 ---
 
 ## 🧠 How it works
-`easycron` → generates trigger → GitHub runs it → server wakes → task runs
+`easycron CLI` → generates trigger → GitHub runs it → server wakes → task runs
 
 ---
 
