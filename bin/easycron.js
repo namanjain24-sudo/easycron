@@ -3,6 +3,9 @@
 /**
  * easycron CLI Entry Point
  * Human-friendly cron scheduling + external triggers for free-tier servers.
+ *
+ * Phase 1: Local scheduling, explain, list, remove
+ * Phase 2: External triggers, cron-job.org, redundancy, keep-awake, configurable retries
  */
 
 'use strict';
@@ -14,7 +17,12 @@ const pkg = require('../package.json');
 const { parseSchedule } = require('../src/parser');
 const { addJob, listJobs, removeJob, getJobLogs } = require('../src/store');
 const { startScheduler } = require('../src/scheduler');
-const { generateGitHubAction, generateUptimeRobotConfig } = require('../src/trigger');
+const {
+  generateGitHubAction,
+  generateUptimeRobotConfig,
+  generateCronJobOrgConfig,
+  generateKeepAwake,
+} = require('../src/trigger');
 
 // ─── Program Setup ───────────────────────────────────────────────
 
@@ -172,15 +180,19 @@ program
     }
   });
 
-// ─── External Trigger Command ────────────────────────────────────
+// ─── External Trigger Command (Phase 2 Enhanced) ─────────────────
 
 program
   .command('external <url> <schedule>')
-  .description('Generate external trigger configs (GitHub Actions, UptimeRobot)')
-  .option('--auth <token>', 'Authorization header for the target endpoint (e.g. "Bearer TOKEN")')
-  .option('--redundant', 'Generate configs for multiple trigger providers simultaneously')
-  .option('--provider <name>', 'Trigger provider: github (default), uptimerobot, cronjob', 'github')
+  .description('Generate external trigger configs (GitHub Actions, UptimeRobot, cron-job.org)')
+  .option('--auth <token>', 'Authorization header (e.g. "Bearer TOKEN")')
+  .option('--redundant', 'Generate configs for ALL trigger providers simultaneously')
+  .option('--provider <name>', 'Trigger provider: github, uptimerobot, cronjob (default: github)', 'github')
   .option('--output <path>', 'Output directory for generated files', '.')
+  .option('--retries <n>', 'Number of retry attempts in generated trigger (default: 3)', '3')
+  .option('--delay <seconds>', 'Delay between retries in seconds (default: 10)', '10')
+  .option('--method <verb>', 'HTTP method: GET or POST (default: GET)', 'GET')
+  .option('--body <json>', 'JSON body for POST requests')
   .action((url, schedule, options) => {
     // URL validation
     try {
@@ -201,6 +213,20 @@ program
       process.exit(1);
     }
 
+    // Validate HTTP method
+    const method = options.method.toUpperCase();
+    if (method !== 'GET' && method !== 'POST') {
+      console.error(chalk.red('\n✖ Invalid HTTP method: ') + method);
+      console.error(chalk.gray('  Supported: GET, POST\n'));
+      process.exit(1);
+    }
+
+    // Validate body only with POST
+    if (options.body && method !== 'POST') {
+      console.error(chalk.red('\n✖ --body can only be used with --method POST\n'));
+      process.exit(1);
+    }
+
     // Parse schedule
     let result;
     try {
@@ -210,8 +236,24 @@ program
       process.exit(1);
     }
 
+    const retries = parseInt(options.retries, 10);
+    const delay = parseInt(options.delay, 10);
+
+    if (isNaN(retries) || retries < 1 || retries > 10) {
+      console.error(chalk.red('\n✖ --retries must be a number between 1 and 10\n'));
+      process.exit(1);
+    }
+    if (isNaN(delay) || delay < 1 || delay > 60) {
+      console.error(chalk.red('\n✖ --delay must be a number between 1 and 60\n'));
+      process.exit(1);
+    }
+
     console.log(chalk.green('✔') + ' Schedule parsed: ' + chalk.cyan(schedule));
     console.log(chalk.green('✔') + ' Cron: ' + chalk.bold(result.cron));
+
+    if (method === 'POST') {
+      console.log(chalk.green('✔') + ' Method: ' + chalk.bold('POST'));
+    }
 
     // Warn about aggressive intervals
     if (result.intervalMinutes && result.intervalMinutes < 5) {
@@ -219,9 +261,9 @@ program
       console.log(chalk.yellow('   Free tier = 2,000 min/month. At every ' + result.intervalMinutes + ' min, that\'s ~' + Math.round(43200 / (60 / result.intervalMinutes)) + ' runs/month.\n'));
     }
 
-    // Generate configs
+    // Determine which providers to generate for
     const providers = options.redundant
-      ? ['github', 'uptimerobot']
+      ? ['github', 'uptimerobot', 'cronjob']
       : [options.provider];
 
     for (const provider of providers) {
@@ -232,6 +274,10 @@ program
             cron: result.cron,
             auth: options.auth || null,
             outputDir: options.output,
+            retries,
+            delay,
+            method,
+            body: options.body || null,
           });
           console.log(chalk.green('✔') + ' GitHub Action generated at:');
           console.log('  ' + chalk.cyan(outputPath));
@@ -247,9 +293,19 @@ program
           console.log(chalk.gray(config));
           break;
         }
+        case 'cronjob': {
+          const config = generateCronJobOrgConfig({
+            url,
+            cron: result.cron,
+            auth: options.auth || null,
+          });
+          console.log(chalk.green('✔') + ' cron-job.org config:');
+          console.log(chalk.gray(config));
+          break;
+        }
         default:
           console.error(chalk.red('\n✖ Unknown provider: ') + provider);
-          console.error(chalk.gray('  Supported: github, uptimerobot\n'));
+          console.error(chalk.gray('  Supported: github, uptimerobot, cronjob\n'));
           process.exit(1);
       }
     }
@@ -263,8 +319,72 @@ program
     });
 
     console.log(chalk.green('✔') + ' Job tracked: ' + chalk.gray(job.id));
+
+    if (retries !== 3 || delay !== 10) {
+      console.log(chalk.green('✔') + ' Custom retry: ' + chalk.white(retries + 'x with ' + delay + 's delay'));
+    }
+
     console.log(chalk.yellow('\n⚠️  Reminder: GitHub Actions schedules use UTC time.'));
     console.log(chalk.gray('   Commit the generated YAML file to your repo to activate.\n'));
+  });
+
+// ─── Keep-Awake Command (Phase 2) ───────────────────────────────
+
+program
+  .command('keep-awake <url>')
+  .description('Generate keep-awake configs to prevent free-tier server sleep (14-min ping)')
+  .option('--output <path>', 'Output directory for generated files', '.')
+  .option('--framework <name>', 'Server framework: express, fastify (default: express)', 'express')
+  .action((url, options) => {
+    // URL validation
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        console.error(chalk.red('\n✖ Invalid URL: ') + 'Cannot use localhost for keep-awake.');
+        console.error(chalk.gray('  Use your deployed URL: https://your-app.onrender.com\n'));
+        process.exit(1);
+      }
+    } catch {
+      console.error(chalk.red('\n✖ Invalid URL: ') + 'Please provide a fully qualified URL.');
+      console.error(chalk.gray('  Example: https://your-app.onrender.com\n'));
+      process.exit(1);
+    }
+
+    console.log(chalk.bold('\n🏥 Keep-Awake Setup\n'));
+
+    const { healthSnippet, githubPath, uptimeConfig } = generateKeepAwake({
+      url,
+      outputDir: options.output,
+      framework: options.framework,
+    });
+
+    // Step 1: Health endpoint
+    console.log(chalk.yellow('Step 1:') + ' Add this ' + chalk.cyan('/health') + ' endpoint to your server:\n');
+    console.log(chalk.gray('─'.repeat(60)));
+    console.log(chalk.green(healthSnippet));
+    console.log(chalk.gray('─'.repeat(60)));
+
+    // Step 2: GitHub Action
+    console.log(chalk.yellow('\nStep 2:') + ' Commit the generated GitHub Action:\n');
+    console.log(chalk.green('✔') + ' GitHub Action generated at:');
+    console.log('  ' + chalk.cyan(githubPath));
+    console.log(chalk.gray('  → Pings /health every 14 min (just under Render\'s 15-min sleep threshold)'));
+
+    // Step 3: UptimeRobot (optional backup)
+    console.log(chalk.yellow('\nStep 3 (optional):') + ' Set up UptimeRobot as a backup:\n');
+    console.log(chalk.gray(uptimeConfig));
+
+    // Persist
+    const job = addJob({
+      phrase: 'keep-awake (every 14 min)',
+      cron: '*/14 * * * *',
+      command: url.replace(/\/+$/, '') + '/health',
+      mode: 'keep-awake',
+    });
+
+    console.log(chalk.green('✔') + ' Job tracked: ' + chalk.gray(job.id));
+    console.log(chalk.yellow('\n💡 Tip: Free-tier platforms like Render sleep after ~15 min of inactivity.'));
+    console.log(chalk.gray('   This keep-awake setup pings every 14 min to prevent that.\n'));
   });
 
 // ─── Parse & Execute ─────────────────────────────────────────────

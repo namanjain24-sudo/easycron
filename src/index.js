@@ -8,7 +8,12 @@
 const { parseSchedule, ParseError } = require('./parser');
 const { addJob, listJobs, removeJob, getJobLogs } = require('./store');
 const { startScheduler, rehydrateAll, stopJob } = require('./scheduler');
-const { generateGitHubAction, generateUptimeRobotConfig } = require('./trigger');
+const {
+  generateGitHubAction,
+  generateUptimeRobotConfig,
+  generateCronJobOrgConfig,
+  generateKeepAwake,
+} = require('./trigger');
 
 module.exports = {
   // Parser
@@ -29,4 +34,6 @@ module.exports = {
   // Trigger generators
   generateGitHubAction,
   generateUptimeRobotConfig,
+  generateCronJobOrgConfig,
+  generateKeepAwake,
 };

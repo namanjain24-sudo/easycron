@@ -16,7 +16,7 @@ Internal cron tools (like `node-cron`, `APScheduler`) **die when your server sle
 Free-tier platforms like **Render, Railway, Fly.io** forcefully put servers to sleep after ~15 minutes of inactivity.  
 When the server sleeps, your background cron dies with it.
 
-**easycron** solves this by triggering your sleeping API from an always-awake external source (GitHub Actions, UptimeRobot).
+**easycron** solves this by triggering your sleeping API from an always-awake external source (GitHub Actions, UptimeRobot, cron-job.org).
 
 ---
 
@@ -59,7 +59,9 @@ easycron explain "every monday at 9am"
 | `every 2 hours` | `0 */2 * * *` |
 | `daily at 08:30` | `30 8 * * *` |
 | `daily at 2pm` | `0 14 * * *` |
+| `daily at 2:30pm` | `30 14 * * *` |
 | `every monday at 09:00` | `0 9 * * 1` |
+| `every fri at 5pm` | `0 17 * * 5` |
 | `every weekday at 14:00` | `0 14 * * 1-5` |
 | `every weekend at 10am` | `0 10 * * 0,6` |
 | `hourly` | `0 * * * *` |
@@ -67,7 +69,7 @@ easycron explain "every monday at 9am"
 
 ---
 
-## 💻 Commands
+## 💻 All Commands
 
 | Command | Description |
 |---|---|
@@ -76,44 +78,68 @@ easycron explain "every monday at 9am"
 | `easycron list` | Show all registered jobs |
 | `easycron remove <id>` | Remove a job by ID |
 | `easycron explain "<schedule>"` | Preview cron translation |
-
-### External Trigger Options
-```bash
-# With authentication
-easycron external https://api.my-app.com/task "every 10 minutes" --auth "Bearer MY_TOKEN"
-
-# Redundancy mode (GitHub Actions + UptimeRobot)
-easycron external https://api.my-app.com/task "every 10 minutes" --redundant
-
-# Specific provider
-easycron external https://api.my-app.com/task "hourly" --provider uptimerobot
-```
+| `easycron keep-awake <url>` | Prevent free-tier server sleep |
 
 ---
 
-## 🔄 How External Triggers Work
+## 🔄 External Triggers
 
+### Providers
+```bash
+# GitHub Actions (default)
+easycron external https://api.my-app.com/task "every 10 minutes"
+
+# UptimeRobot
+easycron external https://api.my-app.com/task "every 10 minutes" --provider uptimerobot
+
+# cron-job.org
+easycron external https://api.my-app.com/task "daily at 2am" --provider cronjob
+
+# All 3 at once (redundancy mode)
+easycron external https://api.my-app.com/task "every 10 minutes" --redundant
 ```
-easycron external <url> "schedule"
-        ↓
-  Parses English → Cron
-        ↓
-  Generates GitHub Action YAML
-        ↓
-  User commits to repo
-        ↓
-  GitHub runs on schedule (UTC)
-        ↓
-  curl hits your sleeping server
-        ↓
-  Server wakes → task runs
+
+### Authentication
+```bash
+easycron external https://api.my-app.com/task "every 10 minutes" --auth "Bearer MY_TOKEN"
+```
+
+### POST Requests
+```bash
+easycron external https://api.my-app.com/webhook "hourly" --method POST --body '{"action":"sync"}'
+```
+
+### Custom Retry Configuration
+```bash
+# Server takes >30s to cold-start? Use 6 retries with 15s delay
+easycron external https://api.my-app.com/task "every 10 minutes" --retries 6 --delay 15
 ```
 
 ### Smart Retry System
-Free-tier servers can take 5–20s to cold-start. The generated GitHub Action includes:
-- **3 retry attempts** with **10s backoff**
+The generated GitHub Action includes:
+- **Configurable retry attempts** (default: 3) with **configurable backoff** (default: 10s)
 - Differentiates timeouts (retries) from 5xx errors (fails immediately)
-- Fully configurable inside the YAML
+- 4xx errors also fail immediately (wrong URL/auth)
+
+---
+
+## 🏥 Keep-Awake Helper
+
+Prevent free-tier servers from sleeping with automatic 14-minute pings:
+
+```bash
+easycron keep-awake https://your-app.onrender.com
+```
+
+This generates:
+1. **A `/health` endpoint** code snippet (Express/Fastify)
+2. **A GitHub Action** that pings `/health` every 14 min
+3. **An UptimeRobot config** as optional backup
+
+```bash
+# Fastify users
+easycron keep-awake https://your-app.onrender.com --framework fastify
+```
 
 ---
 
@@ -151,12 +177,14 @@ app.get('/api/task', (req, res) => {
 | Server always ON | `easycron "schedule" -- command` |
 | Server sleeps (free tier) | `easycron external <url> "schedule"` |
 | Mission-critical task | `easycron external <url> "schedule" --redundant` |
+| Prevent server sleep entirely | `easycron keep-awake <url>` |
+| Slow cold-start (>30s) | `easycron external <url> "schedule" --retries 6 --delay 15` |
 
 ---
 
 ## 🛑 Limitations
 
-- Dependent on external services (GitHub Actions, UptimeRobot)
+- Dependent on external services (GitHub Actions, UptimeRobot, cron-job.org)
 - Not real-time guaranteed (GitHub can delay schedules during peak hours)
 - Subject to network failures outside CLI control
 - Not a job queue (use BullMQ/Celery for that)
@@ -167,11 +195,21 @@ app.get('/api/task', (req, res) => {
 ## 📦 Programmatic API
 
 ```javascript
-const { parseSchedule } = require('easycron');
+const { parseSchedule, generateGitHubAction } = require('easycron');
 
 const result = parseSchedule('every 10 minutes');
 console.log(result.cron);   // "*/10 * * * *"
 console.log(result.fields); // { minute: '*/10', hour: '*', ... }
+
+// Generate trigger programmatically
+generateGitHubAction({
+  url: 'https://my-app.com/api/task',
+  cron: result.cron,
+  auth: null,
+  outputDir: '.',
+  retries: 3,
+  delay: 10,
+});
 ```
 
 ---
