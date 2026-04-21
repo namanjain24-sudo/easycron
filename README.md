@@ -1,22 +1,48 @@
 # ⏳ easycron
 
-**Human-friendly cron scheduling + external triggers for free-tier servers.**
+Schedule jobs in plain English — and run them reliably even on sleeping servers.
 
-Never write cron syntax again. Never lose a scheduled job to a sleeping server.
+Stop writing cron syntax. Stop losing jobs when your server sleeps.
+
+## 🚀 Install
 
 ```bash
-npm i -g easycron
+npm i -g easycron-cli
 ```
 
----
+## ⚡ Quick Example
 
-## ⚠️ Why not just use internal cron?
+```bash
+easycron external https://your-app.onrender.com/api/task "every 10 minutes"
+```
 
-Internal cron tools (like `node-cron`, `APScheduler`) **die when your server sleeps**.  
-Free-tier platforms like **Render, Railway, Fly.io** forcefully put servers to sleep after ~15 minutes of inactivity.  
-When the server sleeps, your background cron dies with it.
+👉 Generates a GitHub Action
+👉 Runs every 10 minutes
+👉 Works even if your server is asleep
 
-**easycron** solves this by triggering your sleeping API from an always-awake external source (GitHub Actions, UptimeRobot, cron-job.org).
+## 🤯 Why this exists
+
+Free-tier platforms (Render, Railway, Fly.io):
+- Put servers to sleep after inactivity
+- Kill background cron jobs
+- Break scheduled tasks
+
+**easycron fixes this using external triggers (GitHub Actions, UptimeRobot)**
+
+## 🧠 How it works
+`easycron` → generates trigger → GitHub runs it → server wakes → task runs
+
+## 🔥 Features
+- Plain English scheduling (`every 10 minutes`)
+- Works on free-tier servers
+- GitHub Actions integration
+- Smart retry system (handles cold starts)
+- Keep-awake mode
+- Plugin system
+
+## 🎥 Demo
+*(🎬 Terminal recording GIF goes here — record using a tool like Terminalizer or VHS and place `demo.gif` in the repo.)*
+![easycron cli demo](demo.gif)
 
 ---
 
