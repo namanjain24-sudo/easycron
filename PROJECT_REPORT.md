@@ -1,8 +1,8 @@
-# 📋 easycron: Complete Project Report (Phase 1 + Phase 2)
+# 📋 easycron: Complete Project Report (Phase 1 + Phase 2 + Phase 3)
 
-**Version:** 2.0.0  
-**Tests:** 62/62 passing ✅  
-**Manual verification:** 46/46 features tested ✅  
+**Version:** 3.0.0  
+**Tests:** 89/89 passing ✅  
+**Manual verification:** 55+ features tested ✅  
 **Status:** Ready for `npm publish`
 
 ---
@@ -12,147 +12,172 @@
 ```
 easycron/
 ├── bin/
-│   └── easycron.js          # CLI entry point (commander.js) — 6 commands
+│   └── easycron.js          # CLI entry point (commander.js) — 9 commands
 ├── src/
-│   ├── index.js             # Public API barrel export (all modules)
-│   ├── parser.js            # NLP → Cron engine (20+ patterns)
+│   ├── index.js             # Public API barrel export
+│   ├── parser.js            # NLP → Cron engine (20+ built-in patterns + plugins)
 │   ├── scheduler.js         # node-cron wrapper + rehydration + graceful shutdown
-│   ├── store.js             # ~/.easycron/jobs.json persistence
-│   └── trigger.js           # GitHub Actions + UptimeRobot + cron-job.org + Keep-Awake
+│   ├── store.js             # ~/.easycron/jobs.json with file locking + atomic writes
+│   ├── trigger.js           # GitHub Actions + UptimeRobot + cron-job.org + keep-awake
+│   ├── scaffold.js          # Fast Endpoint boilerplate generator (Express/Fastify)
+│   └── plugins.js           # Community plugin system with ReDoS protection
 ├── tests/
 │   ├── parser.test.js       # 34 parser tests
 │   ├── store.test.js        # 7 store CRUD tests
-│   └── trigger.test.js      # 21 trigger tests (Phase 1 + Phase 2)
-├── package.json             # v2.0.0 with bin entry
-├── package-lock.json
-├── README.md                # Full docs with all features
+│   ├── trigger.test.js      # 21 trigger tests
+│   ├── scaffold.test.js     # 11 scaffold tests
+│   └── plugins.test.js      # 16 plugin system tests
+├── package.json             # v3.0.0
+├── README.md                # Full docs
 ├── LICENSE                  # MIT
-├── .gitignore
 └── easycron_phased_roadmap.md
 ```
 
 ---
 
-## ✅ Phase 1: What Was Built
+## ✅ Phase 1: Core CLI & MVP
 
-### 1. Parser Engine (`src/parser.js`)
+### Parser Engine (`src/parser.js`)
 
-| Feature | Input Example | Output | Status |
-|---|---|---|---|
-| Minute intervals | `every 10 minutes` | `*/10 * * * *` | ✅ |
-| Singular minute | `every 1 minute` | `*/1 * * * *` | ✅ |
-| Hour intervals | `every 2 hours` | `0 */2 * * *` | ✅ |
-| Daily 24h | `daily at 08:30` | `30 8 * * *` | ✅ |
-| Daily 12h AM | `daily at 2am` | `0 2 * * *` | ✅ |
-| Daily 12h PM | `daily at 2pm` | `0 14 * * *` | ✅ |
-| Daily 12h with min | `daily at 2:30pm` | `30 14 * * *` | ✅ |
-| 12am (midnight) | `daily at 12am` | `0 0 * * *` | ✅ |
-| 12pm (noon) | `daily at 12pm` | `0 12 * * *` | ✅ |
-| Weekly full name | `every monday at 09:00` | `0 9 * * 1` | ✅ |
-| Weekly abbreviated | `every fri at 5pm` | `0 17 * * 5` | ✅ |
-| Weekday range | `every weekday at 14:00` | `0 14 * * 1-5` | ✅ |
-| Weekend range | `every weekend at 10am` | `0 10 * * 0,6` | ✅ |
-| Hourly shorthand | `hourly` | `0 * * * *` | ✅ |
-| Midnight shorthand | `midnight` | `0 0 * * *` | ✅ |
-| Extra whitespace | `every    10   minutes` | `*/10 * * * *` | ✅ |
-| Case insensitive | `EVERY Monday AT 14:00` | `0 14 * * 1` | ✅ |
-
-#### Error Handling
-| Error Case | Message | Status |
+| Feature | Input → Output | Status |
 |---|---|---|
-| Random gibberish | Shows all supported patterns | ✅ |
-| Floating point (`every 1.5 hours`) | "Fractional hours not supported" | ✅ |
-| Invalid hour (`daily at 25:00`) | "Must be 0-23" | ✅ |
-| Invalid minute (`daily at 08:60`) | "Must be 0-59" | ✅ |
-| Unsupported interval (`every 7 min`) | Shows valid intervals | ✅ |
+| Minute intervals | `every 10 minutes` → `*/10 * * * *` | ✅ |
+| Singular minute | `every 1 minute` → `*/1 * * * *` | ✅ |
+| Hour intervals | `every 2 hours` → `0 */2 * * *` | ✅ |
+| Daily 24h | `daily at 08:30` → `30 8 * * *` | ✅ |
+| Daily 12h AM | `daily at 2am` → `0 2 * * *` | ✅ |
+| Daily 12h PM | `daily at 2pm` → `0 14 * * *` | ✅ |
+| Daily 12h with min | `daily at 2:30pm` → `30 14 * * *` | ✅ |
+| 12am (midnight) | `daily at 12am` → `0 0 * * *` | ✅ |
+| 12pm (noon) | `daily at 12pm` → `0 12 * * *` | ✅ |
+| Weekly full name | `every monday at 09:00` → `0 9 * * 1` | ✅ |
+| Weekly abbreviated | `every fri at 5pm` → `0 17 * * 5` | ✅ |
+| Weekday range | `every weekday at 14:00` → `0 14 * * 1-5` | ✅ |
+| Weekend range | `every weekend at 10am` → `0 10 * * 0,6` | ✅ |
+| Hourly shorthand | `hourly` → `0 * * * *` | ✅ |
+| Midnight shorthand | `midnight` → `0 0 * * *` | ✅ |
+| Extra whitespace | Normalized correctly | ✅ |
+| Case insensitive | `EVERY Monday AT 14:00` works | ✅ |
 
-### 2. Job Store (`src/store.js`)
+### Error Handling
+| Error Case | Status |
+|---|---|
+| Random gibberish → shows supported patterns | ✅ |
+| Floating point → "Fractional not supported" | ✅ |
+| Invalid hour/minute → boundary checks | ✅ |
+| Unsupported intervals → shows valid options | ✅ |
 
+### Job Store, Scheduler, CLI
 | Feature | Status |
 |---|---|
-| Auto-create `~/.easycron/` directory | ✅ |
-| Add job with UUID + timestamp | ✅ |
-| List all jobs | ✅ |
-| Remove by full UUID | ✅ |
-| Remove by partial ID (first 8 chars) | ✅ |
-| Corrupted JSON recovery (backup + reset) | ✅ |
-
-### 3. Scheduler Engine (`src/scheduler.js`)
-
-| Feature | Status |
-|---|---|
-| Schedule via `node-cron` + `child_process.exec` | ✅ |
-| 60-second command timeout | ✅ |
+| `~/.easycron/` auto-creation | ✅ |
+| Job CRUD (add, list, remove by full/partial ID) | ✅ |
+| Corrupted JSON recovery | ✅ |
+| `node-cron` scheduler with 60s timeout | ✅ |
 | Graceful SIGINT/SIGTERM shutdown | ✅ |
-| Foreground warning + pm2 suggestion | ✅ |
-
-### 4. CLI Commands (Phase 1)
-
-| Command | Status |
-|---|---|
-| `easycron -v` | ✅ Shows 2.0.0 |
-| `easycron --help` | ✅ All 6 commands visible |
-| `easycron explain "<schedule>"` | ✅ With field breakdown + timezone note |
-| `easycron "<schedule>" -- <command>` | ✅ With foreground/pm2 guidance |
-| `easycron list` | ✅ Empty state UX + populated table |
-| `easycron remove <id>` | ✅ Full + partial ID support |
+| `explain`, `list`, `remove` commands | ✅ |
 
 ---
 
-## ✅ Phase 2: What Was Added
+## ✅ Phase 2: External Triggers & Resilience
 
-### 5. External Trigger Providers
-
+### Trigger Providers
 | Provider | Command | Status |
 |---|---|---|
-| GitHub Actions (default) | `easycron external <url> "schedule"` | ✅ |
-| UptimeRobot | `easycron external <url> "schedule" --provider uptimerobot` | ✅ |
-| cron-job.org | `easycron external <url> "schedule" --provider cronjob` | ✅ |
-| All 3 at once | `easycron external <url> "schedule" --redundant` | ✅ |
+| GitHub Actions | `easycron external <url> "schedule"` | ✅ |
+| UptimeRobot | `--provider uptimerobot` | ✅ |
+| cron-job.org | `--provider cronjob` | ✅ |
+| All 3 at once | `--redundant` | ✅ |
 
-### 6. Advanced Trigger Options
-
+### Advanced Options
 | Feature | Flag | Status |
 |---|---|---|
-| Auth header injection | `--auth "Bearer TOKEN"` | ✅ |
-| Custom retries | `--retries 6` (1-10) | ✅ |
-| Custom delay | `--delay 20` (1-60s) | ✅ |
+| Auth header | `--auth "Bearer TOKEN"` | ✅ |
+| Custom retries (1-10) | `--retries 6` | ✅ |
+| Custom delay (1-60s) | `--delay 20` | ✅ |
 | POST method | `--method POST` | ✅ |
 | JSON body | `--body '{"action":"sync"}'` | ✅ |
 
-### 7. Smart Retry System (in generated YAML)
-
+### Smart Retry (in generated YAML)
 | Behavior | Status |
 |---|---|
 | Configurable MAX_RETRIES + RETRY_DELAY | ✅ |
-| 2xx → Success, exit 0 | ✅ |
-| 5xx → Server error, fail immediately (no retry) | ✅ |
-| 4xx → Client error, fail immediately (bad auth/URL) | ✅ |
-| Timeout/connection refused → Retry (cold-start) | ✅ |
-| Retry config documented in YAML comments | ✅ |
+| 2xx → Success | ✅ |
+| 5xx → Fail immediately (no retry) | ✅ |
+| 4xx → Fail immediately (bad auth/URL) | ✅ |
+| Timeout → Retry (cold-start) | ✅ |
 
-### 8. Keep-Awake Command
+### Keep-Awake
+| Feature | Status |
+|---|---|
+| Express `/health` snippet | ✅ |
+| Fastify `/health` snippet | ✅ |
+| GitHub Action (14-min ping) | ✅ |
+| UptimeRobot backup config | ✅ |
+
+### Safety Guards
+| Guard | Status |
+|---|---|
+| Localhost rejection | ✅ |
+| Invalid URL format | ✅ |
+| `--body` without POST | ✅ |
+| Invalid HTTP method | ✅ |
+| `<5 min` interval warning | ✅ |
+| YAML collision-safe filenames | ✅ |
+
+---
+
+## ✅ Phase 3: Developer Polish & Advanced Scaffolding
+
+### Epic 3.1: Fast Endpoint Scaffolding (`easycron scaffold`)
 
 | Feature | Status |
 |---|---|
-| `easycron keep-awake <url>` | ✅ |
-| Express `/health` endpoint snippet | ✅ |
-| Fastify `/health` endpoint snippet (`--framework fastify`) | ✅ |
-| GitHub Action pinging `/health` every 14 min | ✅ |
-| UptimeRobot backup config for `/health` | ✅ |
-| Appends `/health` correctly (no double slash) | ✅ |
-| Localhost rejection | ✅ |
+| Express boilerplate with async pattern | ✅ |
+| Fastify boilerplate with setImmediate | ✅ |
+| Idempotency lock (60s cooldown) | ✅ |
+| `/health` endpoint for keep-awake | ✅ |
+| GET + POST variants | ✅ |
+| API key middleware (commented) | ✅ |
+| Collision prevention (rejects overwrite) | ✅ |
+| Custom filename (`--filename`) | ✅ |
+| Custom output dir (`--output`) | ✅ |
+| Next-steps guidance in CLI output | ✅ |
 
-### 9. Edge Case Guards (Phase 2)
+### Epic 3.1: Advanced State Recoverability
 
-| Guard | Error Message | Status |
-|---|---|---|
-| `--body` without `--method POST` | "body can only be used with POST" | ✅ |
-| Invalid method (`DELETE`) | "Supported: GET, POST" | ✅ |
-| Localhost on keep-awake | "Use your deployed URL" | ✅ |
-| Localhost on external | "Cannot reach your local machine" | ✅ |
-| Invalid URL format | "Provide fully qualified URL" | ✅ |
-| `<5 min` interval warning | Free-tier exhaustion estimate | ✅ |
+| Feature | Status |
+|---|---|
+| Advisory file locking (PID-based `.lock` file) | ✅ |
+| Stale lock detection (10s timeout) | ✅ |
+| Atomic writes (.tmp + rename) | ✅ |
+| Unique tmp filenames (PID + timestamp) | ✅ |
+| Fallback direct write on rename failure | ✅ |
+| Backup rotation (up to 3 `.corrupted` files) | ✅ |
+| Per-job execution logging (`~/.easycron/logs/`) | ✅ |
+| `easycron logs <id>` command | ✅ |
+
+### Epic 3.2: Plugin Architecture
+
+| Feature | Status |
+|---|---|
+| Plugin loading from `~/.easycron/plugins/*.js` | ✅ |
+| Programmatic `addPlugin()` API | ✅ |
+| String-to-RegExp auto-conversion | ✅ |
+| Plugin patterns integrated into parser | ✅ |
+| `easycron plugins` command to list | ✅ |
+| Plugin result includes `pluginName` field | ✅ |
+
+### Epic 3.2: ReDoS Protection
+
+| Security Check | Status |
+|---|---|
+| Nested quantifier detection `(a+)+` | ✅ |
+| Pattern length limit (200 chars) | ✅ |
+| Quantifier count limit (>10 rejected) | ✅ |
+| Handler timeout sandbox (1000ms) | ✅ |
+| Invalid handler result validation | ✅ |
+| Handler error wrapping | ✅ |
 
 ---
 
@@ -172,7 +197,15 @@ easycron/
 | Trigger: UptimeRobot | 4 | ✅ |
 | Trigger: cron-job.org | 4 | ✅ |
 | Trigger: Keep-Awake | 5 | ✅ |
-| **Total** | **62** | **62/62 ✅** |
+| Scaffold: Express | 5 | ✅ |
+| Scaffold: Fastify | 2 | ✅ |
+| Scaffold: File Writer | 4 | ✅ |
+| Plugins: ReDoS Protection | 4 | ✅ |
+| Plugins: Registration | 5 | ✅ |
+| Plugins: Parsing | 2 | ✅ |
+| Plugins: Sandboxed Execution | 3 | ✅ |
+| Plugins: Registry | 2 | ✅ |
+| **Total** | **89** | **89/89 ✅** |
 
 ---
 
@@ -182,13 +215,13 @@ easycron/
 ```bash
 cd ~/Desktop/easycron
 npm install
-npm link    # makes `easycron` available globally
+npm link
 ```
 
 ### 1. Basics
 ```bash
-easycron -v
-easycron --help
+easycron -v                            # → 3.0.0
+easycron --help                        # → 9 commands visible
 ```
 
 ### 2. Explain — All Patterns
@@ -206,98 +239,151 @@ easycron explain "hourly"
 easycron explain "midnight"
 ```
 
-### 3. Edge Cases (Should Succeed)
+### 3. Edge Cases
 ```bash
 easycron explain "every    10   minutes"       # extra whitespace
 easycron explain "EVERY Monday AT 14:00"       # mixed case
 easycron explain "every wed at 3pm"            # abbreviated day
 ```
 
-### 4. Error Handling (Should Fail Gracefully)
+### 4. Error Handling
 ```bash
-easycron explain "whenever you feel like it"   # random input
+easycron explain "whenever you feel like it"   # gibberish
 easycron explain "every 1.5 hours"             # floating point
 easycron explain "daily at 25:00"              # invalid hour
 easycron explain "daily at 08:60"              # invalid minute
 easycron explain "every 7 minutes"             # unsupported interval
 ```
 
-### 5. External — GitHub Actions (Default)
+### 5. External — GitHub Actions
 ```bash
 easycron external https://my-app.onrender.com/api/sync "every 10 minutes"
 easycron external https://my-app.onrender.com/api/secure "daily at 2am" --auth "Bearer TOKEN"
-cat .github/workflows/easycron-trigger.yml     # verify generated YAML
 ```
 
 ### 6. External — Other Providers
 ```bash
-# UptimeRobot
 easycron external https://my-app.onrender.com/api/task "every 15 minutes" --provider uptimerobot
-
-# cron-job.org
 easycron external https://my-app.onrender.com/api/sync "daily at 2am" --provider cronjob
 ```
 
-### 7. External — Full Redundancy (All 3 Providers)
+### 7. Redundancy Mode (All 3)
 ```bash
 easycron external https://my-app.onrender.com/api/critical "every 30 minutes" --redundant
 ```
 
-### 8. External — Custom Retry Config
+### 8. Custom Retry
 ```bash
-# For slow cold-starting servers
 easycron external https://my-app.onrender.com/api/slow "every 10 minutes" --retries 6 --delay 20
-grep "MAX_RETRIES=6" .github/workflows/easycron-trigger*.yml   # verify in YAML
 ```
 
-### 9. External — POST with JSON Body
+### 9. POST with Body
 ```bash
 easycron external https://my-app.onrender.com/api/webhook "hourly" --method POST --body '{"action":"sync"}'
-grep "POST" .github/workflows/easycron-trigger*.yml            # verify in YAML
 ```
 
-### 10. External — Error Guards
+### 10. Error Guards
 ```bash
-easycron external http://localhost:3000/api "every 10 minutes"          # localhost rejection
-easycron external "not-a-url" "every 10 minutes"                        # invalid URL
-easycron external https://my-app.com/api "hourly" --body '{"x":1}'     # body without POST
-easycron external https://my-app.com/api "hourly" --method DELETE       # invalid method
-easycron external https://my-app.com/api/fast "every 1 minute"          # <5min warning
+easycron external http://localhost:3000/api "every 10 minutes"     # localhost
+easycron external "not-a-url" "every 10 minutes"                    # invalid URL
+easycron external https://my-app.com/api "hourly" --body '{"x":1}' # body without POST
+easycron external https://my-app.com/api "hourly" --method DELETE   # invalid method
 ```
 
 ### 11. Keep-Awake
 ```bash
-# Express (default)
 easycron keep-awake https://my-app.onrender.com
-
-# Fastify
 easycron keep-awake https://my-app.onrender.com --framework fastify
-
-# Error: localhost
-easycron keep-awake http://localhost:3000
+easycron keep-awake http://localhost:3000                            # rejected
 ```
 
-### 12. Job Management
+### 12. Scaffold (Phase 3)
 ```bash
-easycron list                      # see all tracked jobs
-easycron remove <first-8-chars>    # remove one by partial ID
-easycron list                      # confirm removal
-easycron remove fake-id-999        # non-existent ID error
+easycron scaffold                                    # Express
+easycron scaffold --framework fastify --filename my-server.js  # Fastify
+easycron scaffold                                    # collision error
+grep "isLocked" easycron-endpoint.js                 # verify idempotency
 ```
 
-### 13. Local Scheduling (Live)
+### 13. Plugins (Phase 3)
 ```bash
-# Runs echo every minute (Ctrl+C to stop)
-easycron "every 1 minute" -- echo "Hello from easycron!"
+# Empty state
+easycron plugins
 
-# Missing command error
-easycron "every 10 minutes"
+# Install a plugin
+mkdir -p ~/.easycron/plugins
+cat > ~/.easycron/plugins/custom.js << 'EOF'
+module.exports = {
+  name: 'custom-schedules',
+  patterns: [{
+    match: /^twice daily$/i,
+    handler: () => ({
+      cron: '0 0,12 * * *',
+      fields: { minute: '0', hour: '0,12', dayOfMonth: '*', month: '*', dayOfWeek: '*' },
+      intervalMinutes: null,
+    }),
+    description: 'twice daily → 0 0,12 * * *',
+  }],
+};
+EOF
+
+# Verify and use
+easycron plugins                      # → "custom-schedules (1 pattern)"
+easycron explain "twice daily"        # → 0 0,12 * * *
+
+# Cleanup
+rm ~/.easycron/plugins/custom.js
 ```
 
-### 14. Automated Test Suite
+### 14. Logs (Phase 3)
 ```bash
-npm test                   # run all 62 tests
+easycron logs <job-id>                # show execution history
+easycron logs <job-id> -n 5           # last 5 entries
+easycron logs fake-id                 # empty state message
 ```
+
+### 15. Job Management
+```bash
+easycron list
+easycron remove <first-8-chars>
+easycron remove fake-id-999           # error
+```
+
+### 16. Automated Tests
+```bash
+npm test                              # 89/89 ✅
+```
+
+---
+
+## 📊 Git History
+
+```
+6e3f410 feat(phase-3): scaffold, plugin system, file locking, execution logs
+db21901 docs: update PROJECT_REPORT.md with Phase 1+2 complete verification
+70e7017 feat(phase-2): external triggers, cron-job.org, keep-awake, custom retries
+9ee02b9 docs: add PROJECT_REPORT.md with full feature verification
+6989bd5 feat: initial easycron CLI — parser, scheduler, store, trigger generator
+```
+
+---
+
+## 📐 Architecture Decisions
+
+| Decision | Rationale |
+|---|---|
+| Deterministic regex (no NLP lib) | Zero dependencies, predictable, fast startup |
+| Flat JSON store (no SQLite) | Minimal install, human-readable, easy debugging |
+| String concat for YAML | Prevents JS from eating bash `$VARIABLE` references |
+| 14-min keep-awake interval | Just under Render's 15-min sleep threshold |
+| 5xx = fail immediately | Prevents hammering a crashing server |
+| 4xx = fail immediately | Wrong URL/auth won't fix with retries |
+| Collision-safe filenames | Auto-increments `easycron-trigger-N.yml` |
+| Advisory locking (not OS-level) | Portable across platforms, no native deps |
+| PID + timestamp tmp files | Prevents concurrent process race conditions |
+| ReDoS nested quantifier detection | Blocks `(a+)+` patterns that cause exponential backtracking |
+| Handler execution sandbox | 1s timeout prevents community code from hanging |
+| Plugin patterns after built-in | Core patterns always take priority, plugins extend |
 
 ---
 
@@ -306,41 +392,16 @@ npm test                   # run all 62 tests
 ```bash
 npm login
 npm publish
-npm install -g easycron     # verify global install
+npm install -g easycron
 easycron --help
 ```
 
 ---
 
-## 📊 Git History
+## 🗺️ Roadmap Status
 
-```
-70e7017 feat(phase-2): external triggers, cron-job.org, keep-awake, custom retries
-9ee02b9 docs: add PROJECT_REPORT.md with full feature verification
-6989bd5 feat: initial easycron CLI — parser, scheduler, store, trigger generator
-```
-
----
-
-## 🗺️ What's Next (Phase 3)
-
-| Feature | Description | Status |
+| Phase | Status | Version |
 |---|---|---|
-| Fast endpoint scaffolding | `easycron scaffold` → Express.js boilerplate with async pattern | 🔜 |
-| Plugin architecture | Configurable parsing patterns from community | 🔜 |
-| `jobs.json` file locking | Concurrency safety for multi-process | 🔜 |
-| ReDoS protection | Sandbox community regex patterns | 🔜 |
-
----
-
-## 📐 Architecture Decisions
-
-| Decision | Rationale |
-|---|---|
-| **Deterministic regex (no NLP library)** | Zero dependencies for parsing, predictable behavior, fast startup |
-| **Flat JSON store (no SQLite)** | Minimal install footprint, human-readable, easy debugging |
-| **String concat for YAML (no template literals)** | Prevents JS from eating bash `$VARIABLE` references |
-| **14-min keep-awake interval** | Just under Render's 15-min sleep threshold |
-| **5xx = fail immediately, timeout = retry** | Prevents hammering a crashing server |
-| **4xx = fail immediately** | Wrong URL/auth won't fix itself with retries |
-| **Collision-safe filenames** | Auto-increments `easycron-trigger-N.yml` to prevent overwrites |
+| Phase 1: Core CLI & MVP | ✅ Complete | 1.0.0 |
+| Phase 2: External Triggers | ✅ Complete | 2.0.0 |
+| Phase 3: Developer Polish | ✅ Complete | 3.0.0 |

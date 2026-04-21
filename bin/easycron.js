@@ -25,7 +25,7 @@ const {
   generateKeepAwake,
 } = require('../src/trigger');
 const { writeScaffold } = require('../src/scaffold');
-const { getRegisteredPlugins } = require('../src/plugins');
+const { getRegisteredPlugins, loadPlugins } = require('../src/plugins');
 
 // ─── Program Setup ───────────────────────────────────────────────
 
@@ -470,6 +470,7 @@ program
   .command('plugins')
   .description('List registered community parser plugins')
   .action(() => {
+    loadPlugins();
     const plugins = getRegisteredPlugins();
 
     if (plugins.length === 0) {

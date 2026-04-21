@@ -165,15 +165,15 @@ function readJobs() {
 // ─── Atomic Write (Phase 3) ─────────────────────────────────────
 
 /**
- * Write jobs atomically: write to .tmp file, then rename.
- * This prevents partial writes from corrupting the file.
+ * Write jobs atomically: write to unique .tmp file, then rename.
+ * Uses PID + timestamp for unique tmp names to prevent concurrent collisions.
  */
 function writeJobs(data) {
   ensureDir();
-  const tmpFile = JOBS_FILE + '.tmp';
+  const tmpFile = JOBS_FILE + `.tmp.${process.pid}.${Date.now()}`;
 
   try {
-    // Write to temporary file first
+    // Write to unique temporary file first
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
 
     // Atomic rename (on most filesystems, rename is atomic)
@@ -181,7 +181,13 @@ function writeJobs(data) {
   } catch (err) {
     // Clean up tmp file on failure
     try { fs.unlinkSync(tmpFile); } catch { /* noop */ }
-    throw new Error(`Failed to write jobs: ${err.message}`);
+
+    // Fallback: direct write if rename fails (e.g., cross-device)
+    try {
+      fs.writeFileSync(JOBS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (fallbackErr) {
+      throw new Error(`Failed to write jobs: ${fallbackErr.message}`);
+    }
   }
 }
 
