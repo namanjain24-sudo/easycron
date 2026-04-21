@@ -6,6 +6,7 @@
  *
  * Phase 1: Local scheduling, explain, list, remove
  * Phase 2: External triggers, cron-job.org, redundancy, keep-awake, configurable retries
+ * Phase 3: Scaffold, plugins, file locking, execution logs
  */
 
 'use strict';
@@ -23,6 +24,8 @@ const {
   generateCronJobOrgConfig,
   generateKeepAwake,
 } = require('../src/trigger');
+const { writeScaffold } = require('../src/scaffold');
+const { getRegisteredPlugins } = require('../src/plugins');
 
 // ─── Program Setup ───────────────────────────────────────────────
 
@@ -385,6 +388,105 @@ program
     console.log(chalk.green('✔') + ' Job tracked: ' + chalk.gray(job.id));
     console.log(chalk.yellow('\n💡 Tip: Free-tier platforms like Render sleep after ~15 min of inactivity.'));
     console.log(chalk.gray('   This keep-awake setup pings every 14 min to prevent that.\n'));
+  });
+
+// ─── Scaffold Command (Phase 3) ──────────────────────────────────
+
+program
+  .command('scaffold')
+  .description('Generate a "Fast Endpoint" boilerplate showing the easycron API contract')
+  .option('--framework <name>', 'Server framework: express, fastify (default: express)', 'express')
+  .option('--filename <name>', 'Output filename (default: easycron-endpoint.js)')
+  .option('--output <path>', 'Output directory', '.')
+  .action((options) => {
+    console.log(chalk.bold('\n🔧 Generating Fast Endpoint scaffold...\n'));
+
+    try {
+      const { filePath, framework } = writeScaffold({
+        framework: options.framework,
+        outputDir: options.output,
+        filename: options.filename || null,
+      });
+
+      console.log(chalk.green('✔') + ' Scaffold generated: ' + chalk.cyan(filePath));
+      console.log(chalk.gray('  Framework: ' + framework));
+      console.log(chalk.gray('\n  This file demonstrates:'));
+      console.log(chalk.gray('    • Immediate 200 OK response (the API contract)'));
+      console.log(chalk.gray('    • Async background task execution'));
+      console.log(chalk.gray('    • In-memory idempotency/rate-limiting lock'));
+      console.log(chalk.gray('    • /health endpoint for keep-awake pings'));
+      console.log(chalk.gray('    • Optional API key middleware'));
+      console.log(chalk.yellow('\n  Next steps:'));
+      console.log(chalk.gray('    1. Install framework: npm install ' + framework));
+      console.log(chalk.gray('    2. Replace runTaskAsync() with your real logic'));
+      console.log(chalk.gray('    3. Deploy and run: easycron external <url> "schedule"\n'));
+    } catch (err) {
+      console.error(chalk.red('\n✖ ') + err.message + '\n');
+      process.exit(1);
+    }
+  });
+
+// ─── Logs Command (Phase 3) ──────────────────────────────────────
+
+program
+  .command('logs <id>')
+  .description('Show execution logs for a job')
+  .option('-n, --lines <count>', 'Number of log entries to show', '20')
+  .action((id, options) => {
+    const limit = parseInt(options.lines, 10) || 20;
+    const logs = getJobLogs(id, limit);
+
+    if (logs.length === 0) {
+      console.log(chalk.yellow('\n📭 No execution logs found for: ' + id));
+      console.log(chalk.gray('  Logs are recorded when jobs run via local scheduling.\n'));
+      return;
+    }
+
+    console.log(chalk.bold('\n📋 Execution Logs for: ' + chalk.cyan(id.substring(0, 8)) + '\n'));
+    console.log(chalk.gray('─'.repeat(80)));
+
+    for (const entry of logs) {
+      const icon = entry.status === 'success' ? chalk.green('✔') : chalk.red('✖');
+      const time = entry.timestamp || 'unknown';
+      const duration = entry.duration ? `${entry.duration}ms` : '';
+      console.log(
+        '  ' + icon + ' ' +
+        chalk.gray(time) + '  ' +
+        chalk.white(entry.status || 'unknown') +
+        (duration ? '  ' + chalk.gray(duration) : '')
+      );
+      if (entry.output) {
+        console.log(chalk.gray('    ' + entry.output.substring(0, 100)));
+      }
+    }
+
+    console.log(chalk.gray('─'.repeat(80)));
+    console.log(chalk.gray('\n  Showing last ' + logs.length + ' entries\n'));
+  });
+
+// ─── Plugins Command (Phase 3) ───────────────────────────────────
+
+program
+  .command('plugins')
+  .description('List registered community parser plugins')
+  .action(() => {
+    const plugins = getRegisteredPlugins();
+
+    if (plugins.length === 0) {
+      console.log(chalk.yellow('\n📭 No plugins installed.\n'));
+      console.log(chalk.gray('  To add a plugin, create a .js file in ~/.easycron/plugins/'));
+      console.log(chalk.gray('  See: https://github.com/easycron/cli#plugins\n'));
+      return;
+    }
+
+    console.log(chalk.bold('\n🔌 Registered Plugins\n'));
+    for (const p of plugins) {
+      console.log('  ' + chalk.cyan(p.name) + chalk.gray(' (' + p.patternCount + ' patterns)'));
+      for (const desc of p.descriptions) {
+        console.log(chalk.gray('    • ' + desc));
+      }
+    }
+    console.log('');
   });
 
 // ─── Parse & Execute ─────────────────────────────────────────────

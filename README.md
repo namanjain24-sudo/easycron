@@ -79,6 +79,9 @@ easycron explain "every monday at 9am"
 | `easycron remove <id>` | Remove a job by ID |
 | `easycron explain "<schedule>"` | Preview cron translation |
 | `easycron keep-awake <url>` | Prevent free-tier server sleep |
+| `easycron scaffold` | Generate Fast Endpoint boilerplate |
+| `easycron logs <id>` | View execution history for a job |
+| `easycron plugins` | List installed community plugins |
 
 ---
 
@@ -192,10 +195,87 @@ app.get('/api/task', (req, res) => {
 
 ---
 
+## 🔧 Scaffold (Fast Endpoint Generator)
+
+Don't know how to set up the endpoint for external triggers? Let easycron generate the boilerplate:
+
+```bash
+# Express (default)
+easycron scaffold
+
+# Fastify
+easycron scaffold --framework fastify
+
+# Custom filename
+easycron scaffold --filename my-server.js
+```
+
+The generated file includes:
+- **Immediate 200 OK** response pattern (the API contract)
+- **Async background execution** (non-blocking)
+- **In-memory idempotency lock** (60s cooldown prevents duplicate runs)
+- **`/health` endpoint** (ready for keep-awake pings)
+- **POST variant** with JSON body support
+- **Optional API key middleware** (uncomment to enable)
+
+---
+
+## 🔌 Plugin System
+
+Extend the parser with community patterns. Drop `.js` files in `~/.easycron/plugins/`:
+
+```javascript
+// ~/.easycron/plugins/custom-patterns.js
+module.exports = {
+  name: 'custom-patterns',
+  patterns: [
+    {
+      match: /^twice daily$/i,
+      handler: () => ({
+        cron: '0 0,12 * * *',
+        fields: { minute: '0', hour: '0,12', dayOfMonth: '*', month: '*', dayOfWeek: '*' },
+        intervalMinutes: null,
+      }),
+      description: 'twice daily → 0 0,12 * * *',
+    },
+  ],
+};
+```
+
+```bash
+# Verify plugins loaded
+easycron plugins
+
+# Now this works
+easycron explain "twice daily"
+```
+
+**Security:** All community regex patterns are scanned for ReDoS vulnerabilities before loading. Patterns with nested quantifiers, excessive length, or too many quantifiers are automatically rejected.
+
+---
+
+## 📋 Execution Logs
+
+```bash
+# View last 20 execution entries for a job
+easycron logs <job-id>
+
+# View last 5 entries
+easycron logs <job-id> -n 5
+```
+
+---
+
 ## 📦 Programmatic API
 
 ```javascript
-const { parseSchedule, generateGitHubAction } = require('easycron');
+const {
+  parseSchedule,
+  generateGitHubAction,
+  writeScaffold,
+  addPlugin,
+  analyzeRegexSafety,
+} = require('easycron');
 
 const result = parseSchedule('every 10 minutes');
 console.log(result.cron);   // "*/10 * * * *"
@@ -210,6 +290,23 @@ generateGitHubAction({
   retries: 3,
   delay: 10,
 });
+
+// Generate scaffold programmatically
+writeScaffold({ framework: 'express', outputDir: './' });
+
+// Register a plugin programmatically
+addPlugin({
+  name: 'my-plugin',
+  patterns: [{
+    match: /^every quarter hour$/,
+    handler: () => ({ cron: '*/15 * * * *', fields: {} }),
+    description: 'every quarter hour',
+  }],
+});
+
+// Check if a regex is ReDoS-safe
+const safety = analyzeRegexSafety(/(a+)+/);
+console.log(safety); // { safe: false, reason: 'Nested quantifiers detected' }
 ```
 
 ---

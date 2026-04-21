@@ -16,6 +16,8 @@
 
 'use strict';
 
+const { loadPlugins, tryPluginParse } = require('./plugins');
+
 // ─── Constants ───────────────────────────────────────────────────
 
 const DAY_MAP = {
@@ -113,16 +115,34 @@ function normalize(input) {
   return input.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// ─── Plugin Loading (Phase 3) ────────────────────────────────────
+
+let pluginsLoaded = false;
+
+function ensurePluginsLoaded() {
+  if (!pluginsLoaded) {
+    pluginsLoaded = true;
+    const { loaded, errors } = loadPlugins();
+    if (errors.length > 0) {
+      for (const err of errors) {
+        console.warn(`⚠️  Plugin load error: ${err}`);
+      }
+    }
+  }
+}
+
 // ─── Main Parser ─────────────────────────────────────────────────
 
 /**
  * Parse a plain English schedule phrase into a cron expression.
+ * Tries built-in patterns first, then community plugins.
  *
  * @param {string} input - The schedule phrase
  * @returns {{ cron: string, fields: object, raw: string, intervalMinutes: number|null }}
  * @throws {ParseError}
  */
 function parseSchedule(input) {
+  ensurePluginsLoaded();
   if (!input || typeof input !== 'string') {
     throw new ParseError('Schedule input is required and must be a non-empty string.');
   }
@@ -207,6 +227,12 @@ function parseSchedule(input) {
     const { hour, minute } = parseTime(weekendMatch[1]);
     const cron = `${minute} ${hour} * * 0,6`;
     return buildResult(cron, { minute: String(minute), hour: String(hour), dayOfMonth: '*', month: '*', dayOfWeek: '0,6' }, raw, null);
+  }
+
+  // ── Try community plugins before failing ──
+  const pluginResult = tryPluginParse(text, raw);
+  if (pluginResult) {
+    return pluginResult;
   }
 
   // ── Fallback: Unrecognized input ──
