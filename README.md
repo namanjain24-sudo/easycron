@@ -361,6 +361,22 @@ console.log(safety); // { safe: false, reason: 'Nested quantifiers detected' }
 
 ---
 
+## ⚠️ Limitations & Edge Cases
+
+Since `easycron CLI` leverages GitHub Actions and free-tier infrastructure to bypass hosting costs, there are a few strict platform limitations you should be aware of:
+
+1. **The 60-Day GitHub Sleep**
+   GitHub automatically halts scheduled cron workflows in repositories that haven't had any commit activity for 60 days.
+   **Fix:** Ensure you push a commit (even a minor text edit) to your repository at least once every 2 months to keep your background triggers actively running.
+
+2. **Free-Tier Execution Limits (2,000 Minutes)**
+   Free GitHub accounts include 2,000 Action Minutes per month. A typical `easycron` HTTP ping takes ~5-10 seconds. Running a single `keep-awake` heartbeat (every 14 mins) uses roughly ~100 minutes a month, which is perfectly safe. However, scheduling dozens of rapid tasks (e.g. 15 apps pinging every 5 minutes) will quickly exhaust your monthly quota.
+
+3. **Target Server Death**
+   If your hosting provider (Render, Railway, etc.) permanently disables your server due to bandwidth overuse or ToS violations, `easycron`'s requests will result in `4xx/5xx` HTTP errors. The built-in smart retry logic will detect the dead endpoint and deliberately abort to prevent spamming broken URLs.
+
+---
+
 ## License
 
 MIT
