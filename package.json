@@ -1,6 +1,6 @@
 {
   "name": "easycron-cli",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Human-friendly cron scheduling + external triggers for free-tier servers. Never write cron syntax again.",
   "main": "src/index.js",
   "bin": {
