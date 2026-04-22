@@ -171,8 +171,11 @@ easycron external https://api.my-app.com/task "every 10 minutes" --retries 6 --d
 ### Smart Retry System
 The generated GitHub Action includes:
 - **Configurable retry attempts** (default: 3) with **configurable backoff** (default: 10s)
-- Differentiates timeouts (retries) from 5xx errors (fails immediately)
-- 4xx errors also fail immediately (wrong URL/auth)
+- **30s timeout** — tolerates slow cold-starts on free-tier servers
+- **Follows redirects** (`-L`) — avoids false failures on 3xx responses
+- **2xx & 3xx = success** — accepts all normal HTTP responses
+- **5xx = retries** — handles transient 502/503 during server boot
+- **4xx = fails immediately** — wrong URL/auth won't waste retries
 
 ---
 
@@ -325,7 +328,7 @@ const {
   writeScaffold,
   addPlugin,
   analyzeRegexSafety,
-} = require('easycron');
+} = require('easycron-cli');
 
 const result = parseSchedule('every 10 minutes');
 console.log(result.cron);   // "*/10 * * * *"
@@ -373,7 +376,7 @@ Since `easycron CLI` leverages GitHub Actions and free-tier infrastructure to by
    Free GitHub accounts include 2,000 Action Minutes per month. A typical `easycron` HTTP ping takes ~5-10 seconds. Running a single `keep-awake` heartbeat (every 14 mins) uses roughly ~100 minutes a month, which is perfectly safe. However, scheduling dozens of rapid tasks (e.g. 15 apps pinging every 5 minutes) will quickly exhaust your monthly quota.
 
 3. **Target Server Death**
-   If your hosting provider (Render, Railway, etc.) permanently disables your server due to bandwidth overuse or ToS violations, `easycron`'s requests will result in `4xx/5xx` HTTP errors. The built-in smart retry logic will detect the dead endpoint and deliberately abort to prevent spamming broken URLs.
+   If your hosting provider (Render, Railway, etc.) permanently disables your server due to bandwidth overuse or ToS violations, `easycron`'s requests will result in `4xx` HTTP errors and the workflow will fail immediately. For `5xx` errors, the system will retry up to 3 times before giving up.
 
 ---
 
