@@ -50,7 +50,7 @@ function generateGitHubAction({ url, cron, auth, outputDir, retries = 3, delay =
   }
 
   // Build curl command with optional auth, method, and body
-  let curlCmd = 'curl -s -o /dev/null -w "%{http_code}" -m $TIMEOUT';
+  let curlCmd = 'curl -s -L -o /dev/null -w "%{http_code}" -m $TIMEOUT';
   if (method === 'POST') {
     curlCmd += ' -X POST';
     curlCmd += ' -H "Content-Type: application/json"';
