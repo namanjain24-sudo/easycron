@@ -73,7 +73,7 @@ describe('Trigger: GitHub Actions', () => {
     assert.ok(path2.includes('easycron-trigger-2.yml'));
   });
 
-  it('should include smart retry with 5xx differentiation', () => {
+  it('should retry on 5xx (cold-start tolerance) and fail only on 4xx', () => {
     const filePath = generateGitHubAction({
       url: 'https://my-app.com/api/task',
       cron: '*/10 * * * *',
@@ -82,8 +82,11 @@ describe('Trigger: GitHub Actions', () => {
     });
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('500'));
-    assert.ok(content.includes('not retrying'));
+    // 5xx should trigger retry (server cold-starting), NOT immediate failure
+    assert.ok(content.includes('Server not ready'));
+    // 4xx should still fail immediately (bad config)
+    assert.ok(content.includes('Client error'));
+    assert.ok(content.includes('400'));
   });
 
   it('should include 4xx client error handling', () => {
